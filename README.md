@@ -8,11 +8,11 @@ A USDc ↔ fiat currency exchange calculator for iOS.
 
 | Tool | Version |
 |------|---------|
-| Xcode | 26 (beta) |
-| iOS Deployment Target | 26.4 |
+| Xcode | 16+ |
+| iOS Deployment Target | 17.0 |
 | Swift | 5.10 |
 
-> **Note:** The project uses Xcode 26's `PBXFileSystemSynchronizedRootGroup` — it will not open correctly in Xcode 15 or earlier.
+> **Note:** The project uses `PBXFileSystemSynchronizedRootGroup` introduced in Xcode 16 — it will not open correctly in Xcode 15 or earlier.
 
 ---
 
@@ -20,7 +20,7 @@ A USDc ↔ fiat currency exchange calculator for iOS.
 
 1. Clone the repo
 2. Open `CurrencyCalculator.xcodeproj`
-3. Select any iOS 26 simulator
+3. Select any iOS 17+ simulator
 4. **Signing:** Go to *Targets → CurrencyCalculator → Signing & Capabilities* and select your own development team
 5. `Cmd+R` to build and run
 
