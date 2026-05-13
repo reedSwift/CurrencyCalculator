@@ -88,19 +88,38 @@ struct ExchangeCardView: View {
 
     // MARK: - Card stack
 
+    /// Custom bindings route typed input through the ViewModel's sanitize+recompute
+    /// pipeline *before* SwiftUI renders the value, so the TextField never displays
+    /// an invalid string (e.g. more than 2 decimal places). Using $viewModel.topText
+    /// directly lets SwiftUI render the raw keystroke first; the Combine sink corrects
+    /// it a frame later, which is visible as a brief flicker / extra character.
+    private var topTextBinding: Binding<String> {
+        Binding(
+            get: { viewModel.topText },
+            set: { viewModel.handleTopTextChange($0) }
+        )
+    }
+
+    private var bottomTextBinding: Binding<String> {
+        Binding(
+            get: { viewModel.bottomText },
+            set: { viewModel.handleBottomTextChange($0) }
+        )
+    }
+
     /// Two white rounded cards stacked with a 2px gap, swap button centred between them.
     private var cardStack: some View {
         ZStack(alignment: .center) {
             VStack(spacing: DS.Spacing.cardGap) {
                 currencyCard(
                     currency: viewModel.topCurrency,
-                    text: $viewModel.topText,
+                    text: topTextBinding,
                     isPickable: !viewModel.usdcIsOnTop,
                     focusTag: .top
                 )
                 currencyCard(
                     currency: viewModel.bottomCurrency,
-                    text: $viewModel.bottomText,
+                    text: bottomTextBinding,
                     isPickable: viewModel.usdcIsOnTop,
                     focusTag: .bottom
                 )
