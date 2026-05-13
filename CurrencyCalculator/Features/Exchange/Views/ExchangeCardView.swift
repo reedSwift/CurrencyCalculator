@@ -21,16 +21,10 @@ struct ExchangeCardView: View {
         }
         .background(Color(.systemGroupedBackground))
         .ignoresSafeArea(.keyboard, edges: .bottom)
+        .onTapGesture { focusedField = nil }
         .onChange(of: focusedField) { oldValue, newValue in
             guard let newFocus = newValue else { return }
             viewModel.fieldGainedFocus(isTop: newFocus == .top)
-        }
-        .toolbar {
-            ToolbarItemGroup(placement: .keyboard) {
-                Spacer()
-                Button("Done") { focusedField = nil }
-                    .fontWeight(.semibold)
-            }
         }
     }
 
