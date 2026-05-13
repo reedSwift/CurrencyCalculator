@@ -1,0 +1,10 @@
+{
+  "apiBaseURL": "https://api.dolarapp.dev/v1",
+  "endpoints": {
+    "tickers": "/tickers",
+    "currencies": "/tickers-currencies"
+  },
+  "retryCount": 3,
+  "requestTimeout": 30,
+  "cacheMaxAgeHours": 24
+}
