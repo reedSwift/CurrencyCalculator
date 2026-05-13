@@ -9,6 +9,7 @@ import UIKit
 /// Lifetime rule: a coordinator must be retained by its parent (or SceneDelegate
 /// for the root). ARC will deallocate it and its entire sub-tree when the parent
 /// is done with it.
+@MainActor
 protocol Coordinator: AnyObject {
     /// Build and present the initial UI for this coordinator's flow.
     func start()

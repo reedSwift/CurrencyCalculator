@@ -2,12 +2,12 @@ import Foundation
 
 // MARK: - Rate result types
 
-enum RateSource {
+enum RateSource: Sendable {
     case live
     case cached
 }
 
-struct RateResult {
+struct RateResult: Sendable {
     let rates: [String: Double]
     let source: RateSource
     let fetchedAt: Date
@@ -15,7 +15,7 @@ struct RateResult {
 
 // MARK: - Protocol
 
-protocol ExchangeRateServiceProtocol {
+protocol ExchangeRateServiceProtocol: Sendable {
     func fetchAvailableCurrencies() async -> [String]
     /// Returns nil when no valid data is available — network failed AND no
     /// cache exists or the cache is older than the configured max age.
@@ -26,7 +26,9 @@ protocol ExchangeRateServiceProtocol {
 
 /// Persisted to the Caches directory. iOS may evict this under storage pressure,
 /// which is correct behaviour — it is recoverable data, not user data.
-private struct CachedRates: Codable {
+/// Internal (not private) so `ExchangeRateServiceNetworkTests` can write
+/// cache fixtures directly without having to reverse-engineer the JSON format.
+struct CachedRates: Codable {
     let rates: [String: Double]
     let fetchedAt: Date
 }

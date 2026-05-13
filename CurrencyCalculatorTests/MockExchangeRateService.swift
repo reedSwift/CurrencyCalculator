@@ -1,7 +1,9 @@
 import Foundation
 @testable import CurrencyCalculator
 
-final class MockExchangeRateService: ExchangeRateServiceProtocol {
+// @unchecked Sendable: mutable properties are only accessed from @MainActor
+// test methods, so there is no actual data race.
+final class MockExchangeRateService: ExchangeRateServiceProtocol, @unchecked Sendable {
 
     var currenciesResult: [String] = ["MXN", "ARS", "BRL", "COP"]
     /// Set to nil to simulate network failure with no valid cache (triggers .failed state).

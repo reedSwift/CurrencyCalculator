@@ -49,8 +49,10 @@ extension AppConfiguration {
             let data = try? Data(contentsOf: url),
             let dto = try? JSONDecoder().decode(ConfigDTO.self, from: data)
         else {
-            // Belt-and-suspenders: should never happen in a correctly set-up build
-            fatalError("Missing or malformed \(name).json in bundle")
+            // Fires in debug so the developer notices immediately;
+            // in release the app degrades gracefully rather than crashing.
+            assertionFailure("Missing or malformed \(name).json — check target membership")
+            return .fallback
         }
         return dto
     }
@@ -80,5 +82,16 @@ private struct ConfigDTO: Decodable {
         let tickers: String
         let currencies: String
     }
+
+    /// Safe default used when the config JSON is missing from the bundle.
+    /// Empty apiBaseURL means all network calls fail and the app shows
+    /// "Rates unavailable" rather than crashing.
+    static let fallback = ConfigDTO(
+        apiBaseURL: "",
+        endpoints: EndpointsDTO(tickers: "/tickers", currencies: "/tickers-currencies"),
+        retryCount: 0,
+        requestTimeout: 30,
+        cacheMaxAgeHours: 24
+    )
 }
 

@@ -5,7 +5,7 @@ enum RateLoadState: Equatable {
     case loading
     case live
     case cached
-    case failed(String)
+    case failed
 }
 
 @MainActor
@@ -42,7 +42,8 @@ final class ExchangeViewModel: ObservableObject {
     /// Retained so any in-flight fetch can be cancelled before starting a new one.
     /// Prevents concurrent writes to `rates` / `rateLoadState` when the user
     /// taps Retry rapidly or selects currencies in quick succession.
-    private var fetchTask: Task<Void, Never>?
+    /// `private(set)` so tests can `await fetchTask?.value` for deterministic sync.
+    private(set) var fetchTask: Task<Void, Never>?
 
     // MARK: - Init
 
@@ -65,28 +66,16 @@ final class ExchangeViewModel: ObservableObject {
     // resets the flag, so it never protected anything.
 
     private func setupTextSubscriptions() {
+        // Route SwiftUI field changes through the same handle methods used by tests
+        // so there is exactly one code path for sanitization and recomputation.
         // Note: @Published on @MainActor does NOT replay the current value at
         // subscription time in Swift 6 / Xcode 26 — do NOT add dropFirst() here.
         $topText
-            .sink { [weak self] newValue in
-                guard let self, !self.isRecomputing else { return }
-                self.isRecomputing = true
-                defer { self.isRecomputing = false }
-                self.topText = self.sanitize(newValue)
-                self.activeField = .top
-                self.recompute()
-            }
+            .sink { [weak self] in self?.handleTopTextChange($0) }
             .store(in: &cancellables)
 
         $bottomText
-            .sink { [weak self] newValue in
-                guard let self, !self.isRecomputing else { return }
-                self.isRecomputing = true
-                defer { self.isRecomputing = false }
-                self.bottomText = self.sanitize(newValue)
-                self.activeField = .bottom
-                self.recompute()
-            }
+            .sink { [weak self] in self?.handleBottomTextChange($0) }
             .store(in: &cancellables)
     }
 
@@ -178,7 +167,7 @@ final class ExchangeViewModel: ObservableObject {
 
     private func fetchRates() async {
         guard let result = await service.fetchRates(for: availableCurrencies.map(\.code)) else {
-            rateLoadState = .failed(Strings.Exchange.offlineError)
+            rateLoadState = .failed
             return
         }
         rates.merge(result.rates) { _, new in new }
@@ -204,18 +193,17 @@ final class ExchangeViewModel: ObservableObject {
 
         switch activeField {
         case .top:
-            let amount = parseAmount(topText)
-            let result = usdcIsOnTop
-                ? amount * Decimal(rate)
-                : amount / Decimal(rate)
-            bottomText = formatDecimal(result)
-
+            bottomText = formatDecimal(CurrencyConverter.convert(
+                amount: parseAmount(topText),
+                rate: rate,
+                fromUSDc: usdcIsOnTop
+            ))
         case .bottom:
-            let amount = parseAmount(bottomText)
-            let result = usdcIsOnTop
-                ? amount / Decimal(rate)
-                : amount * Decimal(rate)
-            topText = formatDecimal(result)
+            topText = formatDecimal(CurrencyConverter.convert(
+                amount: parseAmount(bottomText),
+                rate: rate,
+                fromUSDc: !usdcIsOnTop
+            ))
         }
     }
 

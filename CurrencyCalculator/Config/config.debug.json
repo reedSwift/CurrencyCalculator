@@ -6,5 +6,5 @@
   },
   "retryCount": 2,
   "requestTimeout": 15,
-  "cacheMaxAgeHours": 0
+  "cacheMaxAgeHours": 1
 }

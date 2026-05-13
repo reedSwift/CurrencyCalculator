@@ -12,11 +12,9 @@ final class ExchangeViewModelTests: XCTestCase {
         try await super.setUp()
         mock = MockExchangeRateService()
         vm = ExchangeViewModel(service: mock, initialCurrencies: AppConfiguration.test.fallbackCurrencies)
-        // Drain the async init task — mock methods return immediately so a few
-        // cooperative yields are enough to let loadInitialData() finish.
-        await Task.yield()
-        await Task.yield()
-        await Task.yield()
+        // Await the initial load task directly — deterministic regardless of
+        // how much async work the service performs.
+        await vm.fetchTask?.value
     }
 
     override func tearDown() async throws {
@@ -232,7 +230,7 @@ final class ExchangeViewModelTests: XCTestCase {
             fetchedAt: Date()
         )
         let offlineVM = ExchangeViewModel(service: mock, initialCurrencies: AppConfiguration.test.fallbackCurrencies)
-        await Task.yield(); await Task.yield(); await Task.yield()
+        await offlineVM.fetchTask?.value
         XCTAssertEqual(offlineVM.rateLoadState, .cached)
     }
 
@@ -243,7 +241,7 @@ final class ExchangeViewModelTests: XCTestCase {
             fetchedAt: Date()
         )
         let offlineVM = ExchangeViewModel(service: mock, initialCurrencies: AppConfiguration.test.fallbackCurrencies)
-        await Task.yield(); await Task.yield(); await Task.yield()
+        await offlineVM.fetchTask?.value
         XCTAssertTrue(offlineVM.rateSubtitle.contains("(cached"))
     }
 
@@ -252,27 +250,25 @@ final class ExchangeViewModelTests: XCTestCase {
     func testOffline_noValidCache_setsStateFailed() async throws {
         mock.ratesResult = nil
         let failedVM = ExchangeViewModel(service: mock, initialCurrencies: AppConfiguration.test.fallbackCurrencies)
-        await Task.yield(); await Task.yield(); await Task.yield()
-        guard case .failed = failedVM.rateLoadState else {
-            return XCTFail("Expected .failed, got \(failedVM.rateLoadState)")
-        }
+        await failedVM.fetchTask?.value
+        XCTAssertEqual(failedVM.rateLoadState, .failed)
     }
 
     func testOffline_noValidCache_subtitleIsEmpty() async throws {
         mock.ratesResult = nil
         let failedVM = ExchangeViewModel(service: mock, initialCurrencies: AppConfiguration.test.fallbackCurrencies)
-        await Task.yield(); await Task.yield(); await Task.yield()
+        await failedVM.fetchTask?.value
         XCTAssertTrue(failedVM.rateSubtitle.isEmpty)
     }
 
     func testRetryFetch_recoversToLiveState() async throws {
         mock.ratesResult = nil
         let failedVM = ExchangeViewModel(service: mock, initialCurrencies: AppConfiguration.test.fallbackCurrencies)
-        await Task.yield(); await Task.yield(); await Task.yield()
+        await failedVM.fetchTask?.value
 
         mock.ratesResult = RateResult(rates: ["MXN": 18.41], source: .live, fetchedAt: Date())
         failedVM.retryFetch()
-        await Task.yield(); await Task.yield(); await Task.yield()
+        await failedVM.fetchTask?.value
         XCTAssertEqual(failedVM.rateLoadState, .live)
     }
 

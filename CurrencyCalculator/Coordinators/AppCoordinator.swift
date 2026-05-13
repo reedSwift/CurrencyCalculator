@@ -15,6 +15,7 @@ import UIKit
 ///   - Build views or know about UIKit layout.
 ///   - Contain business logic (that lives in ViewModels).
 ///   - Retain services directly (those come via AppEnvironment).
+@MainActor
 final class AppCoordinator: Coordinator {
 
     // MARK: - Properties
@@ -22,8 +23,16 @@ final class AppCoordinator: Coordinator {
     private let window: UIWindow
     private let environment: AppEnvironment
 
-    /// Retained child coordinators. Add a child before calling its start(),
-    /// remove it when its flow is complete to release the sub-tree.
+    /// Retained child coordinators. Pattern:
+    ///   1. Instantiate the child coordinator
+    ///   2. Append it here (retains the sub-tree)
+    ///   3. Call child.start()
+    ///   4. Remove it when the flow completes to deallocate the sub-tree
+    ///
+    /// Example:
+    ///   let child = OnboardingCoordinator(window: window, environment: environment)
+    ///   childCoordinators.append(child)
+    ///   child.start()
     private var childCoordinators: [Coordinator] = []
 
     /// Weak reference — the ViewModel is owned by MainViewController.
