@@ -19,14 +19,15 @@ struct AppEnvironment {
     // MARK: - Factories
 
     /// Production environment — reads config from the app bundle and builds
-    /// the live network service.
-    static var live: AppEnvironment {
+    /// the live network service. Computed once on first access (Swift static
+    /// lets are lazy) so `AppConfiguration.load()` only runs once per process.
+    static let live: AppEnvironment = {
         let config = AppConfiguration.load()
         return AppEnvironment(
             config: config,
             exchangeService: ExchangeRateService(config: config)
         )
-    }
+    }()
 
     /// Test / preview environment — caller supplies all dependencies.
     /// Keeps `AppConfiguration.load()` (bundle I/O) out of unit tests entirely.

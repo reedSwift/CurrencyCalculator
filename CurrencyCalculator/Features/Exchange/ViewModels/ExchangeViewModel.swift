@@ -209,6 +209,10 @@ final class ExchangeViewModel: ObservableObject {
 
     private func updateRateSubtitle() {
         let rate = selectedRate
+        // Intentionally silent: rate is 0 when the selected currency hasn't been
+        // returned by the API yet (e.g. right after the user picks a new currency
+        // before the fetch completes). Leaving rateSubtitle unchanged keeps the
+        // last known rate visible rather than flashing an empty label.
         guard rate > 0 else { return }
         let suffix: String
         if rateLoadState == .cached, let fetchedAt = lastFetchedAt {

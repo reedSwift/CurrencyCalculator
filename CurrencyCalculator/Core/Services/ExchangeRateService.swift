@@ -1,4 +1,5 @@
 import Foundation
+import OSLog
 
 // MARK: - Rate result types
 
@@ -35,12 +36,20 @@ struct CachedRates: Codable {
 
 // MARK: - Live implementation
 
-final class ExchangeRateService: ExchangeRateServiceProtocol {
+/// `@unchecked Sendable`: all stored properties are either immutable or
+/// `URLSession` (which is itself `Sendable`). File-cache reads/writes use
+/// try?/guard so a concurrent eviction never crashes — acceptable for
+/// recoverable cache data.
+final class ExchangeRateService: ExchangeRateServiceProtocol, @unchecked Sendable {
 
     private let config: AppConfiguration
     private let session: URLSession
     private let ratesCacheFileURL: URL
     private let currenciesCacheFileURL: URL
+    private let logger = Logger(
+        subsystem: Bundle.main.bundleIdentifier ?? "com.currencycalculator",
+        category: "ExchangeRateService"
+    )
 
     /// Production init — both caches land in the system Caches directory.
     init(config: AppConfiguration, session: URLSession = .shared) {
@@ -80,14 +89,24 @@ final class ExchangeRateService: ExchangeRateServiceProtocol {
         var request = URLRequest(url: url)
         request.timeoutInterval = config.requestTimeout
 
-        do {
-            let (data, _) = try await session.data(for: request)
-            let codes = try JSONDecoder().decode([String].self, from: data)
-            persistCurrencies(codes)
-            return codes
-        } catch {
-            return cachedOrBundledCurrencies()
+        for attempt in 0...config.retryCount {
+            do {
+                let (data, response) = try await session.data(for: request)
+                if let http = response as? HTTPURLResponse,
+                   !(200...299).contains(http.statusCode) {
+                    throw URLError(.badServerResponse)
+                }
+                let codes = try JSONDecoder().decode([String].self, from: data)
+                persistCurrencies(codes)
+                return codes
+            } catch {
+                logger.warning("fetchAvailableCurrencies attempt \(attempt) failed: \(error, privacy: .public)")
+                if attempt < config.retryCount {
+                    try? await Task.sleep(nanoseconds: Self.backoffDelay(attempt: attempt))
+                }
+            }
         }
+        return cachedOrBundledCurrencies()
     }
 
     func fetchRates(for currencies: [String]) async -> RateResult? {
@@ -114,7 +133,11 @@ final class ExchangeRateService: ExchangeRateServiceProtocol {
         var lastError: Error = URLError(.unknown)
         for attempt in 0...config.retryCount {
             do {
-                let (data, _) = try await session.data(for: request)
+                let (data, response) = try await session.data(for: request)
+                if let http = response as? HTTPURLResponse,
+                   !(200...299).contains(http.statusCode) {
+                    throw URLError(.badServerResponse)
+                }
                 let tickers = try JSONDecoder().decode([Ticker].self, from: data)
                 return tickers.reduce(into: [:]) { dict, ticker in
                     if let code = ticker.currencyCode, let rate = ticker.midRate {
@@ -124,11 +147,22 @@ final class ExchangeRateService: ExchangeRateServiceProtocol {
             } catch {
                 lastError = error
                 if attempt < config.retryCount {
-                    try? await Task.sleep(nanoseconds: 500_000_000)
+                    try? await Task.sleep(nanoseconds: Self.backoffDelay(attempt: attempt))
                 }
             }
         }
         throw lastError
+    }
+
+    /// Exponential backoff delay for retry attempt `attempt` (0-based), capped at 30 s
+    /// with ±25 % random jitter to avoid thundering-herd after a server blip.
+    /// attempt 0 → ~0.5 s  |  attempt 1 → ~1 s  |  attempt 2 → ~2 s …
+    private static func backoffDelay(attempt: Int) -> UInt64 {
+        let base: Double = 500_000_000          // 0.5 s in nanoseconds
+        let cap:  Double = 30_000_000_000       // 30 s ceiling
+        let exp = min(base * pow(2.0, Double(attempt)), cap)
+        let jitter = Double.random(in: 0.75...1.25)
+        return UInt64(exp * jitter)
     }
 
     // MARK: - Rates file cache
