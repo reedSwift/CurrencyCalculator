@@ -8,11 +8,11 @@ A USDc ↔ fiat currency exchange calculator for iOS.
 
 | Tool | Version |
 |------|---------|
-| Xcode | 16+ |
+| Xcode | 26+ |
 | iOS Deployment Target | 17.0 |
-| Swift | 5.10 |
+| Swift | 6.0 |
 
-> **Note:** The project uses `PBXFileSystemSynchronizedRootGroup` introduced in Xcode 16 — it will not open correctly in Xcode 15 or earlier.
+> **Note:** The project was created in Xcode 26. It will not open correctly in earlier versions.
 
 ---
 
