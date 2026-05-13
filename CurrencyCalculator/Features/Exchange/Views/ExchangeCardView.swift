@@ -25,6 +25,13 @@ struct ExchangeCardView: View {
             guard let newFocus = newValue else { return }
             viewModel.fieldGainedFocus(isTop: newFocus == .top)
         }
+        .toolbar {
+            ToolbarItemGroup(placement: .keyboard) {
+                Spacer()
+                Button("Done") { focusedField = nil }
+                    .fontWeight(.semibold)
+            }
+        }
     }
 
     // MARK: - Header
